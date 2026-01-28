@@ -7,12 +7,12 @@ from tinker import types
 from tinker_cookbook import model_info, renderers, tokenizer_utils
 
 import anthropic
+from dotenv import load_dotenv
 
-from config import tinker_api_key, CLAUDE_KEY
+load_dotenv()
 
-
-os.environ["TINKER_API_KEY"] = tinker_api_key
-os.environ["ANTHROPIC_API_KEY"] = CLAUDE_KEY
+os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
+os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
 
 anthropic_client = anthropic.Anthropic()
 
