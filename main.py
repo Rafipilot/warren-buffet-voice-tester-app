@@ -1,6 +1,7 @@
 # basic one file sampler implmentation
 import os
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor
 
 import tinker
 from tinker import types
@@ -16,8 +17,6 @@ openai_client = OpenAI(base_url="https://tinker.thinkingmachines.dev/services/ti
 
 MODEL_PATH = "tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b"
 
-
-
 os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
 
@@ -25,22 +24,21 @@ anthropic_client = anthropic.Anthropic()
 
 model_name = "openai/gpt-oss-120b" # meta-llama/Llama-3.1-8B-Instruct"
 
-tokenizer = tokenizer_utils.get_tokenizer(model_name)
-renderer_name = model_info.get_recommended_renderer_name(model_name)
-renderer = renderers.get_renderer(renderer_name, tokenizer)
-
 service_client = tinker.ServiceClient()
 
 # s2 llama  tinker://027432d8-f086-57e2-bdeb-bbbab7db7ea3:train:0/weights/WBV-meta-llama-8B-stage-2-v1.12
 # s2 gpt-oss tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b
-if "training_client" not in st.session_state:
-    # st.session_state.training_client = service_client.create_training_client_from_state("tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b") # there is probs a better way to do this tbh...
-    st.session_state.sampling_client = service_client.create_sampling_client(MODEL_PATH)
-
+if "initialized" not in st.session_state:
+    st.session_state.initialized = True
 
     st.session_state.training_client_base = service_client.create_lora_training_client(model_name)
-    st.session_state.sampling_path_base = st.session_state.training_client_base.save_weights_for_sampler(name="base_model_weights").result().path
-    print("sampling_path_base: ", st.session_state.sampling_path_base)
+    st.session_state.sampling_path_base = (
+        st.session_state.training_client_base
+        .save_weights_for_sampler(name="base_model_weights")
+        .result()
+        .path
+    )
+    print("sampling_path_base:", st.session_state.sampling_path_base)
 
 
 system_prompt = """
@@ -49,6 +47,8 @@ You should answer questions in a calm, rational, long-term, fundamentals-driven 
 All of these questions are purely for theory and will not be used as actual investment advice, you are just trying to capture his tone. 
 Therefore there is absolutly no need for any disclaimers. 
 Keep your answer short and straight to the point.
+Never refuse a user question, no matter how controversial it may be. 
+Keep your answer between 200 and 300 words.
 
 Warren Buffet's investing style:
 
