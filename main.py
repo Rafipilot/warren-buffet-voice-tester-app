@@ -29,15 +29,16 @@ service_client = tinker.ServiceClient()
 # s2 llama  tinker://027432d8-f086-57e2-bdeb-bbbab7db7ea3:train:0/weights/WBV-meta-llama-8B-stage-2-v1.12
 # s2 gpt-oss tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b
 if "initialized" not in st.session_state:
-    st.session_state.initialized = True
+    # st.session_state.initialized = True
 
-    st.session_state.training_client_base = service_client.create_lora_training_client(model_name)
-    st.session_state.sampling_path_base = (
-        st.session_state.training_client_base
-        .save_weights_for_sampler(name="base_model_weights")
-        .result()
-        .path
-    )
+    # st.session_state.training_client_base = service_client.create_lora_training_client(model_name)
+    # st.session_state.sampling_path_base = (
+    #     st.session_state.training_client_base
+    #     .save_weights_for_sampler(name="base_model_weights")
+    #     .result()
+    #     .path
+    # )
+    st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
     print("sampling_path_base:", st.session_state.sampling_path_base)
 
 
@@ -184,24 +185,25 @@ def build_prompt(user_text):
     return msgs
 
 def query_openai(message, tokens = 700):
-    response_lora = openai_client.chat.completions.create(
-        model=MODEL_PATH,
-        messages=build_prompt(message),
-        max_tokens=tokens,
-        temperature=0.8,
-        top_p=0.95,
-    )
 
-    response_lora = response_lora.choices[0].message.content.strip()
+    message = build_prompt(message)
 
-    response_base = openai_client.chat.completions.create(
-        model=st.session_state.sampling_path_base,
-        messages=build_prompt(message),
-        max_tokens=tokens,
-        temperature=0.8,
-        top_p=0.95,
-    )
-    response_base = response_base.choices[0].message.content.strip()
+    def call_model(model_path):
+        response = openai_client.chat.completions.create(
+            model=model_path,
+            messages=message,
+            max_tokens=tokens,
+            temperature=0.8,
+            top_p=0.95,
+        )
+        return response.choices[0].message.content.strip()
+    
+    with ThreadPoolExecutor() as execurtor:
+        future_lora = execurtor.submit(call_model, st.session_state.sampling_path_base)
+        future_base = execurtor.submit(call_model, st.session_state.sampling_path_base)
+
+        response_lora = future_lora.result()
+        response_base = future_base.result()
 
     return response_lora, response_base
 
