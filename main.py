@@ -3,6 +3,7 @@ import os
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 
+
 import tinker
 from tinker import types
 from tinker_cookbook import model_info, renderers, tokenizer_utils
@@ -11,35 +12,53 @@ import anthropic
 from openai import OpenAI
 from dotenv import load_dotenv
 from os import getenv
+
+
+st.set_page_config(page_title="Warren Buffer Voice", layout="wide")
+
 load_dotenv()
+
+
 tinker_api_key = getenv("TINKER_API_KEY")
 openai_client = OpenAI(base_url="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1", api_key=tinker_api_key)
 
-MODEL_PATH = "tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b"
+model_type = st.selectbox("Select model type", ["openai/gpt-oss-120b", "moonshotai/Kimi-K2-Thinking"])
+
+if model_type == "openai/gpt-oss-120b":
+    MODEL_PATH = "tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b"
+elif model_type == "moonshotai/Kimi-K2-Thinking":
+    MODEL_PATH = "tinker://dbb4b782-d6ff-549b-87d0-20ce82230fc4:train:0/weights/WBV-stage2-Kimik2"
 
 os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
 
 anthropic_client = anthropic.Anthropic()
 
-model_name = "openai/gpt-oss-120b" # meta-llama/Llama-3.1-8B-Instruct"
+
 
 service_client = tinker.ServiceClient()
 
 # s2 llama  tinker://027432d8-f086-57e2-bdeb-bbbab7db7ea3:train:0/weights/WBV-meta-llama-8B-stage-2-v1.12
 # s2 gpt-oss tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b
-if "initialized" not in st.session_state:
-    # st.session_state.initialized = True
 
-    # st.session_state.training_client_base = service_client.create_lora_training_client(model_name)
-    # st.session_state.sampling_path_base = (
-    #     st.session_state.training_client_base
-    #     .save_weights_for_sampler(name="base_model_weights")
-    #     .result()
-    #     .path
-    # )
+# st.session_state.initialized = True
+# if model_type == "openai/gpt-oss-120b":
+#     st.session_state.training_client_base = service_client.create_lora_training_client(model_type)
+# elif model_type == "moonshotai/Kimi-K2-Thinking":
+#     st.session_state.training_client_base = service_client.create_lora_training_client(model_type)
+#     #tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights
+
+# st.session_state.sampling_path_base = (
+#     st.session_state.training_client_base
+#     .save_weights_for_sampler(name="base_model_weights")
+#     .result()
+#     .path
+# )
+if model_type == "openai/gpt-oss-120b":
     st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
-    print("sampling_path_base:", st.session_state.sampling_path_base)
+elif model_type == "moonshotai/Kimi-K2-Thinking":
+    st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
+print("sampling_path_base:", st.session_state.sampling_path_base)
 
 
 system_prompt = """
@@ -218,8 +237,6 @@ def judge_output(text, text_base):
 
     resp = resp.content[0].text.strip().lower()
     return resp
-
-st.set_page_config(page_title="Warren Buffer Voice", layout="wide")
 
 st.title("Warren Buffet Voice")
 
