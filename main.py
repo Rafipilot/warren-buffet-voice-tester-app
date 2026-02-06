@@ -28,7 +28,7 @@ model_type = st.selectbox("Select model type", ["openai/gpt-oss-120b", "moonshot
 if model_type == "openai/gpt-oss-120b":
     MODEL_PATH = "tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b"
 elif model_type == "moonshotai/Kimi-K2-Thinking":
-    MODEL_PATH = "tinker://dbb4b782-d6ff-549b-87d0-20ce82230fc4:train:0/weights/WBV-stage2-Kimik2"
+    MODEL_PATH = "tinker://dbb4b782-d6ff-549b-87d0-20ce82230fc4:train:0/sampler_weights/WBV-stage2-Kimik2"
 
 os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
@@ -45,7 +45,7 @@ service_client = tinker.ServiceClient()
 if model_type == "openai/gpt-oss-120b":
     st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
 elif model_type == "moonshotai/Kimi-K2-Thinking":
-    st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
+    st.session_state.sampling_path_base = "tinker://a277ebb0-efc8-50a5-9838-2f95224dd66e:train:0/sampler_weights/base_model_weights"
 
 
 
