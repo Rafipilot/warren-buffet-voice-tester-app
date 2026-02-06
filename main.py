@@ -7,9 +7,16 @@ from tinker import types
 from tinker_cookbook import model_info, renderers, tokenizer_utils
 
 import anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
-
+from os import getenv
 load_dotenv()
+tinker_api_key = getenv("TINKER_API_KEY")
+openai_client = OpenAI(base_url="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1", api_key=tinker_api_key)
+
+MODEL_PATH = "tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b"
+
+
 
 os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
 os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
@@ -27,12 +34,13 @@ service_client = tinker.ServiceClient()
 # s2 llama  tinker://027432d8-f086-57e2-bdeb-bbbab7db7ea3:train:0/weights/WBV-meta-llama-8B-stage-2-v1.12
 # s2 gpt-oss tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b
 if "training_client" not in st.session_state:
-    st.session_state.training_client = service_client.create_training_client_from_state("tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b") # there is probs a better way to do this tbh...
-    st.session_state.sampling_client = st.session_state.training_client.save_weights_and_get_sampling_client() 
+    # st.session_state.training_client = service_client.create_training_client_from_state("tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b") # there is probs a better way to do this tbh...
+    st.session_state.sampling_client = service_client.create_sampling_client(MODEL_PATH)
 
 
     st.session_state.training_client_base = service_client.create_lora_training_client(model_name)
-    st.session_state.sampling_client_base = st.session_state.training_client_base.save_weights_and_get_sampling_client() 
+    st.session_state.sampling_path_base = st.session_state.training_client_base.save_weights_for_sampler(name="base_model_weights").result().path
+    print("sampling_path_base: ", st.session_state.sampling_path_base)
 
 
 system_prompt = """
@@ -140,32 +148,62 @@ Constraints:
 In your Answer indicate which is fine-tuned and which is not.
 
 """
-def query(message, tokens = 700):
-    message = [{"role": "system", "content": f"{system_prompt}"}, {"role": "user", "content": f"{message}"}]
-    prompt = renderer.build_generation_prompt(message)
+# def query(message, tokens = 700):
+#     message = [{"role": "system", "content": f"{system_prompt}"}, {"role": "user", "content": f"{message}"}]
+#     prompt = renderer.build_generation_prompt(message)
 
-    sampling_params = types.SamplingParams(
+#     sampling_params = types.SamplingParams(
+#         max_tokens=tokens,
+#         temperature=0.8,
+#         top_p=0.95,
+#     )
+
+#     future = st.session_state.sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1)
+
+#     future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
+
+#     result = future.result()
+
+#     result_base = future_base.result()
+
+#     print("Query : ", message[1]["content"])
+#     for seq in result.sequences:
+#         text = tokenizer.decode(seq.tokens)
+
+#     for seq in result_base.sequences:
+#         text_base = tokenizer.decode(seq.tokens)
+
+#     return text, text_base
+
+def build_prompt(user_text):
+    msgs = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_text},
+    ]
+
+    return msgs
+
+def query_openai(message, tokens = 700):
+    response_lora = openai_client.chat.completions.create(
+        model=MODEL_PATH,
+        messages=build_prompt(message),
         max_tokens=tokens,
         temperature=0.8,
         top_p=0.95,
     )
 
-    future = st.session_state.sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1)
+    response_lora = response_lora.choices[0].message.content.strip()
 
-    future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
+    response_base = openai_client.chat.completions.create(
+        model=st.session_state.sampling_path_base,
+        messages=build_prompt(message),
+        max_tokens=tokens,
+        temperature=0.8,
+        top_p=0.95,
+    )
+    response_base = response_base.choices[0].message.content.strip()
 
-    result = future.result()
-
-    result_base = future_base.result()
-
-    print("Query : ", message[1]["content"])
-    for seq in result.sequences:
-        text = tokenizer.decode(seq.tokens)
-
-    for seq in result_base.sequences:
-        text_base = tokenizer.decode(seq.tokens)
-
-    return text, text_base
+    return response_lora, response_base
 
 
 def judge_output(text, text_base):
@@ -187,7 +225,7 @@ user_message = st.text_area("Ask me anything: ")
 
 if st.button("Send"):
     with st.spinner("Generating response..."):
-        text, text_base = query(user_message)
+        text, text_base = query_openai(user_message)
 
     left, right = st.columns(2)
 
@@ -200,4 +238,3 @@ if st.button("Send"):
 
     with st.spinner("Loading Judge Response"):
         st.write(judge_output(text, text_base))
-
