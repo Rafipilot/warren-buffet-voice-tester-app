@@ -3,6 +3,7 @@ import os
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 
+from datetime import datetime
 
 import tinker
 from tinker import types
@@ -217,14 +218,21 @@ def query_openai(message, tokens = 700):
         )
         return response.choices[0].message.content.strip()
     
+
     with ThreadPoolExecutor() as execurtor:
+
         future_lora = execurtor.submit(call_model, st.session_state.sampling_path_base)
         future_base = execurtor.submit(call_model, st.session_state.sampling_path_base)
 
+
+        now = datetime.now()
         response_lora = future_lora.result()
+
         response_base = future_base.result()
 
-    return response_lora, response_base
+        time_for_inference = datetime.now() - now
+
+    return response_lora, response_base, time_for_inference
 
 
 def judge_output(text, text_base):
@@ -243,10 +251,15 @@ st.title("Warren Buffet Voice")
 user_message = st.text_area("Ask me anything: ")
 
 if st.button("Send"):
-    with st.spinner("Generating response..."):
-        text, text_base = query_openai(user_message)
+    with st.spinner("Generating response...", show_time=True):
+        text, text_base, time_for_inference = query_openai(user_message)
 
     left, right = st.columns(2)
+    st.write(f"Inference time: {time_for_inference}")
+    length_of_both_responses = len(text) + len(text_base)
+    length_of_both_responses = len(text.split()) + len(text_base.split())
+    st.write("Words generated: ", length_of_both_responses)
+    st.write("words/s: ", length_of_both_responses / (2 * time_for_inference.total_seconds())) # half because we are generating two responses in parallel
 
 
     with left:
