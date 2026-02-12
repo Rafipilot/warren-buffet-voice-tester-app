@@ -26,8 +26,8 @@ options = [
     "path":"tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/sampler_weights/stage2-WBV-1.2-openai_gpt-oss-120b" ,  
     },
     {
-    "name":"moonshotai/Kimi-K2-Thinking",
-    "model":"openai/gpt-oss-120b",
+    "name":"Buffet",
+    "model":"moonshotai/Kimi-K2-Thinking",
     "path":"tinker://dbb4b782-d6ff-549b-87d0-20ce82230fc4:train:0/sampler_weights/WBV-stage2-Kimik2" ,  
     },
         {
@@ -147,7 +147,7 @@ def judge_output(text, text_base):
     resp = resp.content[0].text.strip().lower()
     return resp
 
-st.title("Warren Buffet Voice")
+st.title("Personality fine-tuning")
 
 user_message = st.text_area("Ask me anything: ")
 
