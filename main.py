@@ -35,6 +35,17 @@ options = [
     "model":"openai/gpt-oss-120b",
     "path":"tinker://3734fd39-f9d7-58a6-bc80-d17d75ca44ee:train:0/sampler_weights/Cramer-stage2-GPT-OSS-120B" ,  
     },
+    {
+        "name":"Munger",
+        "model": "moonshotai/Kimi-K2-Thinking",
+        "path": "tinker://bb6e01c2-38ce-510f-9721-0e3af4b5a941:train:0/sampler_weights/Munger-stage2-KimiK2"
+    },
+        {
+        "name":"Soros",
+        "model": "moonshotai/Kimi-K2-Thinking",
+        "path": "tinker://487ce42d-0771-5dd8-869d-886e38f51055:train:0/sampler_weights/Soros-stage2-KimiK2"
+    },
+
 ]
 
 # keep your OpenAI-compatible client, but make sure key is set first
