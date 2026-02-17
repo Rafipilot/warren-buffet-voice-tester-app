@@ -37,101 +37,108 @@ options = [
     },
 ]
 
+# keep your OpenAI-compatible client, but make sure key is set first
+tinker_api_key = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
+os.environ["TINKER_API_KEY"] = tinker_api_key
 
-tinker_api_key = getenv("TINKER_API_KEY")
-openai_client = OpenAI(base_url="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1", api_key=tinker_api_key)
+anthropic_key = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
+os.environ["ANTHROPIC_API_KEY"] = anthropic_key 
 
-
-
-os.environ["TINKER_API_KEY"] = os.getenv("TINKER_API_KEY") or st.secrets["env"]["TINKER_API_KEY"]
-os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY") or st.secrets["env"]["ANTHROPIC_API_KEY"]
+openai_client = OpenAI(
+    base_url="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1",
+    api_key=tinker_api_key,
+)
 
 anthropic_client = anthropic.Anthropic()
 
-# s2 llama  tinker://027432d8-f086-57e2-bdeb-bbbab7db7ea3:train:0/weights/WBV-meta-llama-8B-stage-2-v1.12
-# s2 gpt-oss tinker://72838a4a-7999-5480-8fb5-ece27454dbbe:train:0/weights/stage2-WBV-1.2-openai_gpt-oss-120b
+if "service_client" not in st.session_state:
+    st.session_state.service_client = tinker.ServiceClient()
 
-chosen = st.selectbox("Chose which model you would like to use : ", options)
+chosen = st.selectbox(
+    "Chose which model you would like to use : ",
+    options,
+    format_func=lambda o: f'{o["name"]} | {o["model"]}',
+)
 
 model_type = chosen["model"]
+
+def change_model():
+    st.session_state.tokenizer = tokenizer_utils.get_tokenizer(model_type)
+    st.session_state.renderer_name = model_info.get_recommended_renderer_name(model_type)
+    st.session_state.renderer = renderers.get_renderer(st.session_state.renderer_name, st.session_state.tokenizer)
+
+if "model_type" not in st.session_state:
+    st.session_state.model_type = model_type
+    change_model()
+elif st.session_state.model_type != model_type:
+    st.session_state.model_type = model_type
+    change_model()
+elif "tokenizer" not in st.session_state or "renderer" not in st.session_state:
+    change_model()
 
 if model_type == "openai/gpt-oss-120b":
     st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
 elif model_type == "moonshotai/Kimi-K2-Thinking":
     st.session_state.sampling_path_base = "tinker://a277ebb0-efc8-50a5-9838-2f95224dd66e:train:0/sampler_weights/base_model_weights"
 
+if "sampling_client_path" not in st.session_state or st.session_state.sampling_client_path != chosen["path"]:
+    st.session_state.sampling_client_path = chosen["path"]
+    st.session_state.sampling_client = st.session_state.service_client.create_sampling_client(model_path=chosen["path"])
 
+if "sampling_client_base_path" not in st.session_state or st.session_state.sampling_client_base_path != st.session_state.sampling_path_base:
+    st.session_state.sampling_client_base_path = st.session_state.sampling_path_base
+    st.session_state.sampling_client_base = st.session_state.service_client.create_sampling_client(
+        model_path=st.session_state.sampling_path_base
+    )
 
 if chosen["name"] == "Buffet":
     from prompts.buffet_prompts import system_prompt, JUDGE_SYSTEM_PROMPT
 elif chosen["name"] == "Cramer":
     from prompts.cramer import system_prompt, JUDGE_SYSTEM_PROMPT
-
-# def query(message, tokens = 700):
-#     message = [{"role": "system", "content": f"{system_prompt}"}, {"role": "user", "content": f"{message}"}]
-#     prompt = renderer.build_generation_prompt(message)
-
-#     sampling_params = types.SamplingParams(
-#         max_tokens=tokens,
-#         temperature=0.8,
-#         top_p=0.95,
-#     )
-
-#     future = st.session_state.sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1)
-
-#     future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
-
-#     result = future.result()
-
-#     result_base = future_base.result()
-
-#     print("Query : ", message[1]["content"])
-#     for seq in result.sequences:
-#         text = tokenizer.decode(seq.tokens)
-
-#     for seq in result_base.sequences:
-#         text_base = tokenizer.decode(seq.tokens)
-
-#     return text, text_base
+elif chosen["name"] == "Munger":
+    from prompts.munger import system_prompt, JUDGE_SYSTEM_PROMPT
+elif chosen["name"] == "Soros":
+    from prompts.soros import system_prompt, JUDGE_SYSTEM_PROMPT
 
 def build_prompt(user_text):
     msgs = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_text},
     ]
-
     return msgs
 
-def query_openai(message, tokens = 700):
+def query(message, tokens=700):
+    message = [{"role": "system", "content": f"{system_prompt}"}, {"role": "user", "content": f"{message}"}]
+    prompt = st.session_state.renderer.build_generation_prompt(message)
 
-    message = build_prompt(message)
+    sampling_params = types.SamplingParams(
+        max_tokens=tokens,
+        temperature=0.8,
+        top_p=0.95,
+    )
 
-    def call_model(model_path):
-        response = openai_client.chat.completions.create(
-            model=model_path,
-            messages=message,
-            max_tokens=tokens,
-            temperature=0.8,
-            top_p=0.95,
-        )
-        return response.choices[0].message.content.strip()
+    now = datetime.now()
     
+    future = st.session_state.sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1)
+    future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
 
-    with ThreadPoolExecutor() as execurtor:
+    result = future.result()
+    result_base = future_base.result()
 
-        future_lora = execurtor.submit(call_model, chosen["path"])
-        future_base = execurtor.submit(call_model, st.session_state.sampling_path_base)
+    time_for_inference = datetime.now() - now
 
+    print("Query : ", message[1]["content"])
 
-        now = datetime.now()
-        response_lora = future_lora.result()
+    text = ""
+    text_base = ""
 
-        response_base = future_base.result()
+    if result.sequences:
+        text = st.session_state.tokenizer.decode(result.sequences[0].tokens)
 
-        time_for_inference = datetime.now() - now
+    if result_base.sequences:
+        text_base = st.session_state.tokenizer.decode(result_base.sequences[0].tokens)
 
-    return response_lora, response_base, time_for_inference
-
+    return text, text_base, time_for_inference
 
 def judge_output(text, text_base):
     resp = anthropic_client.messages.create(
@@ -150,15 +157,19 @@ user_message = st.text_area("Ask me anything: ")
 
 if st.button("Send"):
     with st.spinner("Generating response...", show_time=True):
-        text, text_base, time_for_inference = query_openai(user_message)
+        text, text_base, time_for_inference = query(user_message)
 
     left, right = st.columns(2)
+
     st.write(f"Inference time: {time_for_inference}")
-    length_of_both_responses = len(text) + len(text_base)
     length_of_both_responses = len(text.split()) + len(text_base.split())
     st.write("Words generated: ", length_of_both_responses)
-    st.write("words/s: ", length_of_both_responses / (2 * time_for_inference.total_seconds())) # half because we are generating two responses in parallel
 
+    secs = time_for_inference.total_seconds()
+    if secs <= 0:
+        secs = 1e-6
+
+    st.write("words/s: ", length_of_both_responses / (2 * secs))
 
     with left:
         st.write("Fine-tuned result: ", text)
