@@ -43,7 +43,7 @@ options = [
         {
         "name":"Soros",
         "model": "moonshotai/Kimi-K2-Thinking",
-        "path": "tinker://487ce42d-0771-5dd8-869d-886e38f51055:train:0/sampler_weights/Soros-stage2-KimiK2"
+        "path": "tinker://6988006b-eb6e-58a2-8b81-a8f444839122:train:0/sampler_weights/Soros-stage2-KimiK2"
     },
 
 ]
