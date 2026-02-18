@@ -12,12 +12,13 @@ from tinker_cookbook import model_info, renderers, tokenizer_utils
 import anthropic
 from openai import OpenAI
 from dotenv import load_dotenv
-from os import getenv
 
 
 st.set_page_config(page_title="Warren Buffer Voice", layout="wide")
 
 load_dotenv()
+
+GENERATION_MAX_TOKENS = 380
 
 options = [
     {
@@ -30,20 +31,20 @@ options = [
     "model":"moonshotai/Kimi-K2-Thinking",
     "path":"tinker://dbb4b782-d6ff-549b-87d0-20ce82230fc4:train:0/sampler_weights/WBV-stage2-Kimik2" ,  
     },
-        {
+    {
     "name":"Cramer",
     "model":"openai/gpt-oss-120b",
     "path":"tinker://3734fd39-f9d7-58a6-bc80-d17d75ca44ee:train:0/sampler_weights/Cramer-stage2-GPT-OSS-120B" ,  
     },
     {
-        "name":"Munger",
-        "model": "moonshotai/Kimi-K2-Thinking",
-        "path": "tinker://bb6e01c2-38ce-510f-9721-0e3af4b5a941:train:0/sampler_weights/Munger-stage2-KimiK2"
+    "name":"Munger",
+    "model": "moonshotai/Kimi-K2-Thinking",
+    "path": "tinker://bb6e01c2-38ce-510f-9721-0e3af4b5a941:train:0/sampler_weights/Munger-stage2-KimiK2"
     },
-        {
-        "name":"Soros",
-        "model": "moonshotai/Kimi-K2-Thinking",
-        "path": "tinker://6988006b-eb6e-58a2-8b81-a8f444839122:train:0/sampler_weights/Soros-stage2-KimiK2"
+    {
+    "name":"Soros",
+    "model": "moonshotai/Kimi-K2-Thinking",
+    "path": "tinker://6988006b-eb6e-58a2-8b81-a8f444839122:train:0/sampler_weights/Soros-stage2-KimiK2"
     },
 
 ]
@@ -151,6 +152,29 @@ def query(message, tokens=700):
 
     return text, text_base, time_for_inference
 
+def query_with_openai(message, tokens=GENERATION_MAX_TOKENS):
+    prompt = build_prompt(message)
+
+    def call_model(model_id):
+        response = openai_client.chat.completions.create(
+            model=model_id,
+            messages=prompt,
+            max_tokens=tokens,
+            temperature=0.8,
+            top_p=0.95,
+        )
+        return response.choices[0].message.content.strip()
+
+    now = datetime.now()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        fine_tuned_future = executor.submit(call_model, chosen["path"])
+        base_future = executor.submit(call_model, st.session_state.sampling_path_base)
+
+        resp = fine_tuned_future.result()
+        resp_base = base_future.result()
+
+    return resp, resp_base, (datetime.now() - now)
+
 def judge_output(text, text_base):
     resp = anthropic_client.messages.create(
         model="claude-opus-4-5-20251101",
@@ -165,10 +189,14 @@ def judge_output(text, text_base):
 st.title("Personality fine-tuning")
 
 user_message = st.text_area("Ask me anything: ")
+run_judge = st.checkbox("Run style judge", value=False)
 
 if st.button("Send"):
     with st.spinner("Generating response...", show_time=True):
-        text, text_base, time_for_inference = query(user_message)
+        text, text_base, time_for_inference = query(
+            user_message,
+            tokens=GENERATION_MAX_TOKENS,
+        )
 
     left, right = st.columns(2)
 

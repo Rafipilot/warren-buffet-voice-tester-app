@@ -6,3 +6,5 @@ prompts/__pycache__/buffet_prompts.cpython-311.pyc
 prompts/__pycache__/cramer.cpython-311.pyc
 test.py
 inference.py
+/__pycache__
+/prompts/__pycache__
