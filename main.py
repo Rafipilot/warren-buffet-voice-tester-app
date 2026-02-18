@@ -207,11 +207,10 @@ def judge_output(text, text_base):
 st.title("Personality fine-tuning")
 
 user_message = st.text_area("Ask me anything: ")
-run_judge = st.checkbox("Run style judge", value=False)
 
 if st.button("Send"):
     with st.spinner("Generating response...", show_time=True):
-        text, text_base, time_for_inference = query(
+        text, text_base, time_for_inference = query_with_openai(
             user_message,
             tokens=GENERATION_MAX_TOKENS,
         )
