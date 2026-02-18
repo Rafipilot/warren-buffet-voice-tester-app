@@ -66,6 +66,11 @@ anthropic_client = anthropic.Anthropic()
 if "service_client" not in st.session_state:
     st.session_state.service_client = tinker.ServiceClient()
 
+if "use_different_base_model" not in st.session_state:
+    st.session_state.use_different_base_model = False
+
+st.session_state.use_different_base_model = st.checkbox("Use different base model (claude Haiku) for faster comparison? ", value=True)
+
 chosen = st.selectbox(
     "Chose which model you would like to use : ",
     options,
@@ -119,7 +124,8 @@ def build_prompt(user_text):
     ]
     return msgs
 
-def query(message, tokens=700):
+def query(message, tokens=700):  # seems slightly messy
+    raw_message = message
     message = [{"role": "system", "content": f"{system_prompt}"}, {"role": "user", "content": f"{message}"}]
     prompt = st.session_state.renderer.build_generation_prompt(message)
 
@@ -132,23 +138,35 @@ def query(message, tokens=700):
     now = datetime.now()
     
     future = st.session_state.sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1)
-    future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
+
+    print("Using base haiku model for comparison: ", st.session_state.use_different_base_model)
+    print("message sent to model: ", message)
+    if st.session_state.use_different_base_model:
+        resp = anthropic_client.messages.create(
+            model="claude-3-5-haiku-latest",
+            max_tokens=GENERATION_MAX_TOKENS,
+            system=system_prompt,
+            messages=[{"role": "user", "content": raw_message},],
+        )
+        text_base = resp.content[0].text.strip()
+    else:
+        future_base = st.session_state.sampling_client_base.sample(prompt, sampling_params=sampling_params, num_samples=1)
+        result_base = future_base.result()
+        if result_base.sequences:
+            text_base = st.session_state.tokenizer.decode(result_base.sequences[0].tokens)
 
     result = future.result()
-    result_base = future_base.result()
+    
 
     time_for_inference = datetime.now() - now
 
     print("Query : ", message[1]["content"])
-
-    text = ""
-    text_base = ""
+    
 
     if result.sequences:
         text = st.session_state.tokenizer.decode(result.sequences[0].tokens)
 
-    if result_base.sequences:
-        text_base = st.session_state.tokenizer.decode(result_base.sequences[0].tokens)
+
 
     return text, text_base, time_for_inference
 
@@ -208,7 +226,7 @@ if st.button("Send"):
     if secs <= 0:
         secs = 1e-6
 
-    st.write("words/s: ", length_of_both_responses / (2 * secs))
+    st.write("words/s: ", length_of_both_responses / (2 * secs)) # we do 2* because we are generating two responses (fine-tuned and base) in parallel
 
     with left:
         st.write("Fine-tuned result: ", text)
