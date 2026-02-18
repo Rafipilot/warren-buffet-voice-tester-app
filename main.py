@@ -80,7 +80,7 @@ chosen = st.selectbox(
 model_type = chosen["model"]
 
 def change_model():
-    st.session_state.tokenizer = tokenizer_utils.get_tokenizer(model_type, trust_remote_code=True)
+    st.session_state.tokenizer = tokenizer_utils.get_tokenizer(model_type)
     st.session_state.renderer_name = model_info.get_recommended_renderer_name(model_type)
     st.session_state.renderer = renderers.get_renderer(st.session_state.renderer_name, st.session_state.tokenizer)
 
