@@ -18,7 +18,7 @@ st.set_page_config(page_title="Warren Buffer Voice", layout="wide")
 
 load_dotenv()
 
-GENERATION_MAX_TOKENS = 380
+GENERATION_MAX_TOKENS = 580
 
 options = [
     {
@@ -171,6 +171,7 @@ def query(message, tokens=700):  # seems slightly messy
     return text, text_base, time_for_inference
 
 def query_with_openai(message, tokens=GENERATION_MAX_TOKENS):
+
     prompt = build_prompt(message)
 
     def call_model(model_id):
@@ -186,10 +187,22 @@ def query_with_openai(message, tokens=GENERATION_MAX_TOKENS):
     now = datetime.now()
     with ThreadPoolExecutor(max_workers=2) as executor:
         fine_tuned_future = executor.submit(call_model, chosen["path"])
-        base_future = executor.submit(call_model, st.session_state.sampling_path_base)
+        if st.session_state.use_different_base_model:
+            base_future = executor.submit(
+                lambda: anthropic_client.messages.create(
+                    model="claude-3-5-haiku-latest",
+                    max_tokens=GENERATION_MAX_TOKENS,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": message}],
+                ).content[0].text.strip()
+            )
+            resp_base = base_future.result()
+        else:
+            base_future = executor.submit(call_model, st.session_state.sampling_path_base)
+            resp_base = base_future.result()
 
         resp = fine_tuned_future.result()
-        resp_base = base_future.result()
+        
 
     return resp, resp_base, (datetime.now() - now)
 
