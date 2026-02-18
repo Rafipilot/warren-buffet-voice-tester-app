@@ -84,14 +84,14 @@ def change_model():
     st.session_state.renderer_name = model_info.get_recommended_renderer_name(model_type)
     st.session_state.renderer = renderers.get_renderer(st.session_state.renderer_name, st.session_state.tokenizer)
 
-if "model_type" not in st.session_state:
-    st.session_state.model_type = model_type
-    change_model()
-elif st.session_state.model_type != model_type:
-    st.session_state.model_type = model_type
-    change_model()
-elif "tokenizer" not in st.session_state or "renderer" not in st.session_state:
-    change_model()
+# if "model_type" not in st.session_state:
+#     st.session_state.model_type = model_type
+#     change_model()
+# elif st.session_state.model_type != model_type:
+#     st.session_state.model_type = model_type
+#     change_model()
+# elif "tokenizer" not in st.session_state or "renderer" not in st.session_state:
+#     change_model()
 
 if model_type == "openai/gpt-oss-120b":
     st.session_state.sampling_path_base = "tinker://2c53387c-5ef6-58cd-8dde-fc35f3d98d9f:train:0/sampler_weights/base_model_weights"
