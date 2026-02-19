@@ -63,8 +63,8 @@ openai_client = OpenAI(
 
 anthropic_client = anthropic.Anthropic()
 
-if "service_client" not in st.session_state:
-    st.session_state.service_client = tinker.ServiceClient()
+# if "service_client" not in st.session_state:
+#     st.session_state.service_client = tinker.ServiceClient()
 
 if "use_different_base_model" not in st.session_state:
     st.session_state.use_different_base_model = False
@@ -100,13 +100,11 @@ elif model_type == "moonshotai/Kimi-K2-Thinking":
 
 if "sampling_client_path" not in st.session_state or st.session_state.sampling_client_path != chosen["path"]:
     st.session_state.sampling_client_path = chosen["path"]
-    st.session_state.sampling_client = st.session_state.service_client.create_sampling_client(model_path=chosen["path"])
+    # st.session_state.sampling_client = st.session_state.service_client.create_sampling_client(model_path=chosen["path"])
 
 if "sampling_client_base_path" not in st.session_state or st.session_state.sampling_client_base_path != st.session_state.sampling_path_base:
     st.session_state.sampling_client_base_path = st.session_state.sampling_path_base
-    st.session_state.sampling_client_base = st.session_state.service_client.create_sampling_client(
-        model_path=st.session_state.sampling_path_base
-    )
+    #st.session_state.sampling_client_base = st.session_state.service_client.create_sampling_client(model_path=st.session_state.sampling_path_base)
 
 if chosen["name"] == "Buffet":
     from prompts.buffet_prompts import system_prompt, JUDGE_SYSTEM_PROMPT
