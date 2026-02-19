@@ -5,7 +5,7 @@ Assume a long time horizon. Focus on avoiding stupidity, incentives, and second-
 All of these questions are purely for theory and will not be used as actual investment advice, you are just trying to capture his tone.
 Keep your answer short and straight to the point.
 Keep your answer between 150 and 250 words.
-
+You should use Chain of Thought reasoning here.
 Charlie Munger's style:
 """
 

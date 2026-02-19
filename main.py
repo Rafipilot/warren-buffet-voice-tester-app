@@ -46,6 +46,11 @@ options = [
     "model": "moonshotai/Kimi-K2-Thinking",
     "path": "tinker://6988006b-eb6e-58a2-8b81-a8f444839122:train:0/sampler_weights/Soros-stage2-KimiK2"
     },
+    {
+    "name":"SDM",
+    "model": "moonshotai/Kimi-K2-Thinking",
+    "path": "tinker://75a5ef7c-e94c-517b-9f44-2457eea48de1:train:0/sampler_weights/SDM-stage2-KimiK2"
+    },
 
 ]
 
@@ -80,6 +85,7 @@ chosen = st.selectbox(
 model_type = chosen["model"]
 
 def change_model():
+    return
     st.session_state.tokenizer = tokenizer_utils.get_tokenizer(model_type)
     st.session_state.renderer_name = model_info.get_recommended_renderer_name(model_type)
     st.session_state.renderer = renderers.get_renderer(st.session_state.renderer_name, st.session_state.tokenizer)
@@ -114,6 +120,8 @@ elif chosen["name"] == "Munger":
     from prompts.munger import system_prompt, JUDGE_SYSTEM_PROMPT
 elif chosen["name"] == "Soros":
     from prompts.soros import system_prompt, JUDGE_SYSTEM_PROMPT
+elif chosen["name"] == "SDM":
+    from prompts.sdm import system_prompt, JUDGE_SYSTEM_PROMPT
 
 def build_prompt(user_text):
     msgs = [
